@@ -1,0 +1,25 @@
+---
+- hosts: '{{ target }}'
+  serial: 1
+  become: no
+  gather_facts: no
+  remote_user: newarch
+
+  tasks:
+  - name: Start all services on the host
+    shell: ". ~/.bash_profile && /newarch/apps/fs-monitoring/startGroup.sh Service"
+    ignore_errors: yes
+    
+    
+    ---
+- hosts: '{{ target }}'
+  serial: 1
+  become: no
+  gather_facts: no
+  remote_user: newarch
+
+  tasks:
+  - name: Stop all services on the host
+    shell: ". ~/.bash_profile && /newarch/apps/fs-monitoring/stopGroup.sh Service"
+    ignore_errors: yes
+    
