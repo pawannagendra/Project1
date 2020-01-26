@@ -1,0 +1,11 @@
+---
+- hosts: '{{ target }}'
+  serial: 1
+  become: no
+  gather_facts: no
+  remote_user: webdep
+
+  tasks:
+  - name: Start all services on the host
+    shell: ". ~/.bash_profile; cd /newarch/apps/jenkins; ./stop.sh; ./slave.sh"
+    ignore_errors: yes
