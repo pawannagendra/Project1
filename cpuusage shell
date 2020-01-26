@@ -1,0 +1,39 @@
+#!/bin/bash
+
+#################################
+#This scrpit is by Chetan Sharma#
+#################################
+
+echo "*****Server Status*****"
+echo ""
+echo "Date and Time: $(date +%D" - "%r)"
+echo ""
+echo "Kernal: $(uname)"
+echo " `hostname` "
+echo " $(hostname -i)"
+echo ""
+echo "User: $(whoami)"
+echo ""
+echo "uptime: $(uptime) "
+echo ""
+echo ""
+echo "Files: $(df -h /)"
+echo ""
+echo "Files: $(df -h /opt)"
+echo""
+echo "Files: $(df -h /home)"
+echo ""
+echo "Files: $(df -h /var) "
+echo ""
+echo "Files: $(df -h /tmp)"
+echo ""
+echo ""
+echo " Memory :  $(free -m)"
+echo ""
+free -m | awk 'NR==2{printf "Memory Usage: %s/%sMB (%.2f%%)\n", $3,$2,$3*100/$2 }'
+echo ""
+echo " TOP CPU PROCESSES "
+num_iterations=3
+top -b -n $num_iterations | sed -n '8,12p'
+echo ""
+#END
