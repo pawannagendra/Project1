@@ -1,0 +1,5 @@
+- hosts: all
+  tasks:
+    - script: /home/ansible/ansible/scripts/CPUusage.sh
+      register: output
+    - debug: var=output.stdout_lines
