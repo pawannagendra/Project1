@@ -1,0 +1,65 @@
+
+
+Ansible deployment script
+
+---
+-name: Deployment
+host: webserver
+pre-tasks:
+   -including_vars: var.yml
+tasks:
+   -name: download a file
+    maven-artifact:
+      repository_url: 
+                  Group_id:
+      Arifact_id:
+                  Version:
+                  Extension:
+                  dest: "{{artifact_name}}             
+   -name: Pre Install
+    Service:
+      name: Websphere
+      state: Stopped
+   -name: Install
+    Copy:
+                  src: path
+                  dest: path
+   -name: Post Install
+    Service:
+      name: Websphere
+      state: Restarted
+
+
+
+
+Docker Compose File:
+
+
+Version: '3.3'
+Services:
+  Db:
+    image: mysql
+                volumes:
+                  -db_data: /var/lib/mysql
+                restart: always
+                environment:
+                  MYSQL_ROOT_PASSWORD:
+                  MYSQL_DATABASE:
+                  MYSQL_USER:
+                  MYSQL_PASSWORD:
+                  
+  wordpress:
+    depends_on:
+                  -db
+                image: wordpress
+                links:
+                  -db
+    ports:
+      - "8000:80"
+    restart: always
+    environment:
+                  MYSQL_HOST:
+                  MYSQL_USER:
+                  MYSQL_PASSWORD:
+volumes:
+  db_data: {}
