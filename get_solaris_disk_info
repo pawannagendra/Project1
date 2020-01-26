@@ -1,0 +1,8 @@
+echo "df -k output"
+df -k
+echo "/etc/vfstab"
+cat /etc/vfstab
+echo "format output"
+echo | format
+echo "metastat output"
+metastat
