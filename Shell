@@ -1,0 +1,125 @@
+#!/bin/ksh
+####################################################
+# Shell script to be for building by CM
+####################################################
+export JAVA_HOME="$TOOL_HOME"/java/jdk1.8.0_45
+export M2_HOME="$TOOL_HOME"/maven/maven_3.2.5
+export M2="$M2_HOME"/bin
+export PATH="$M2":"$PATH":JAVA_HOME/bin
+
+. ./build.config
+
+echo "============================================================>  OPEN PROJECT"
+cd ../"$PROJECT_NAME"
+pwd
+echo "============================================================>  MAVEN BUILD START"
+
+mvn clean compile package -Dmaven.test.skip=true
+
+if [[ "$?" -ne 0 ]] 
+	then
+		echo "============================================================>  MAVEN BUILD FAILED"
+		exit 9
+fi
+
+echo "============================================================>  MAVEN BUILD DONE."
+
+LIB_PATH="$PROJECT_NAME"
+FORTIFY="$FORTIFY"
+WEBINSPECT="$WEBINSPECT"
+
+FORT_FLAG="TRUE"
+WEBI_FLAG="FALSE"
+
+if [ "$1" ]
+	then		
+		if [ "$1" = "NOFORTIFY" ]
+			then
+				FORT_FLAG="FALSE"
+		fi
+		
+		if [ "$1" = "WEBINSPECT" ]
+			then
+				WEBI_FLAG="TRUE"
+		fi
+		
+		if [ "$1" = "NONE" ]
+			then
+				FORT_FLAG="FALSE"
+				WEBI_FLAG="FALSE"
+		fi
+		
+		if [ "$1" = "ALL" ]
+			then
+				FORT_FLAG="TRUE"
+				WEBI_FLAG="TRUE"
+		fi
+		  		
+fi
+
+echo "FORTIFY FLAG " $FORT_FLAG
+echo "WEBINSPECT FLAG " $WEBI_FLAG
+
+#### Fortify Integration starts
+if [ $FORTIFY = "TRUE" -a $FORT_FLAG = "TRUE" ]
+  then
+      echo "Fortify Scan Starting"
+  
+      SSCURL="$SSCURL"
+	  #this is not coming as it has space 
+      SSCPROJECT="$SSCPROJECT"
+      SSCVERSION="$SSCVERSION"
+      SSCTOKEN="$SSCTOKEN"
+      BUILDID="$BUILDID"
+	  EMAIL="$EMAIL"
+		
+	  echo $SSCURL $SSCPROJECT $SSCVERSION $SSCTOKEN $EMAIL
+      export PATH=$PATH:/opt/escm/acm/tool/fortify/bin
+    
+      #sourceanalyzer -b $BUILDID mvn com.fortify.sca.plugins.maven:sca-maven-plugin:18.10:translate -Dfortify.sca.source.version=1.8
+    	  
+	  sourceanalyzer -b $BUILDID -clean
+	  
+	  sourceanalyzer -b $BUILDID -cp "./target/${LIB_PATH}/WEB-INF/lib/*.jar" "src/main/java/com/**/*" "src/main/resources/*"
+	  
+	  sourceanalyzer -b $BUILDID -show-build-warnings
+	  
+	  cloudscan -sscurl $SSCURL -ssctoken $SSCTOKEN start -upload -application "$SSCPROJECT" -application-version $SSCVERSION -b $BUILDID -uptoken $SSCTOKEN -email $EMAIL -scan
+	  
+	pwd
+
+fi
+#### Fortify Integration Ends
+
+if [[ "$?" -ne 0 ]] 
+	then
+		exit 9
+fi
+
+echo "============================================================>  FORTIFY SCAN FINISHED"
+
+if [  $WEBINSPECT = "TRUE" -o $WEBI_FLAG = "TRUE" ]
+then
+	### Web Inspect Integration
+	echo "Web inspect scan Starting"	
+	/opt/escm/acm/tool/webinspect/webinspect.sh "$SSCPROJECT" "$SSCVERSION" "$EMAIL" "$WEBINSPECT_URL"
+		
+	if [[ "$?" -ne 0 ]] 
+	then
+		exit 9
+	fi
+	echo "============================================================>  Web inspect scan complete"	
+fi
+
+
+echo "============================================================>  CLEANING PACKAGE"
+rm -f ../package/*
+echo "============================================================>  WHATS IN PACKAGE "
+pwd
+ls ../package/
+echo "============================================================>  MOVING WAR TO PACKAGE "
+cp ./target/*.war ../package/
+
+ls ../package/
+
+echo "============================= END ============================================="
