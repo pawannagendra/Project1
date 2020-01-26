@@ -1,0 +1,300 @@
+
+//https://issues.jenkins-ci.org/browse/JENKINS-40667
+//bitbucketCredentials, nexusCredentials are global environment variables set in the Jenknins configuration
+
+pipeline {
+	agent any 
+	options {
+		//disableConcurrentBuilds()
+		timeout(time: 12, unit: 'HOURS') 
+	}
+	tools {
+		maven 'maven-3.10.0'
+		jdk 'java-8'
+	}
+	environment {
+		VERSION = readMavenPom().getVersion()
+		GROUPID = readMavenPom().getGroupId()
+		ARTIFACTID = readMavenPom().getArtifactId()
+		PACKAGING = readMavenPom().getPackaging() 
+		SUCCESSFULTARBUILD = "NO"
+		NEXUSREPOSITORY="unknown"
+		DEPLOYMENT_TIMEOUT = 'false'
+		NEXUSUPLOADURL = ''
+		FOP_CLEANED = "NO"
+		FOP_SCAN = "NO"
+		FOP_SRC_ANALYZER_STATUS = ''
+		FOP_BUILD_ID = "${ARTIFACTID}-${VERSION}"
+		FOP_APPLICATION = 'UAID-03834 / Routing Fee Engine'
+		FOP_VERSION = '1.0'
+	}
+
+	stages {
+        	stage ('Preparation') {
+
+
+			steps {
+				echo "VERSION:${VERSION}"
+				echo "GROUPID:${GROUPID}"
+				echo "ARTIFACTID:${ARTIFACTID}"
+				echo "PACKAGING:${PACKAGING}"
+
+            		checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH_NAME}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CleanCheckout']],  userRemoteConfigs: [[credentialsId: "${bitbucketCredentials}", url: 'ssh://git@escmstash.1dc.com:7999/fds/rfe-oltp.git']]])
+	
+			}
+		}
+
+        	stage('Build') {
+				steps {
+					script {
+						if ("${BRANCH_NAME}" == "development") {	
+							NEXUSREPOSITORY="snapshots"
+						} else if  ("${BRANCH_NAME}" == "master") {	
+							NEXUSREPOSITORY="releases"
+						} else {
+							NEXUSREPOSITORY="snapshots"
+						}
+					}
+        				sh 'mvn clean verify test install'
+            	}
+        	}
+	
+			stage ('Java Code Coverage') {
+				steps {
+        			publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'target/site/jacoco/', reportFiles: 'index.html', reportName: 'Code Coverage Report', reportTitles: 'Code Coverage Report'])
+				}
+			}
+	
+			stage ('Publishing Test Results') {
+				steps {
+					junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'	
+				}
+			}
+	
+			stage ('Archival') {       
+				steps {
+					archiveArtifacts allowEmptyArchive: true, artifacts: 'target/*.war' 
+					archiveArtifacts allowEmptyArchive: true, artifacts: 'target/*.tar'
+				}
+			}
+	
+			stage ('Build Tar File') {
+				steps {
+					script {
+						def status = sh(returnStatus: true, script: "tar -czf target/${ARTIFACTID}-${VERSION}.gz  target/*.tar")
+						if (status <= 0) {
+							SUCCESSFULTARBUILD = "YES"
+						}
+					}
+				}
+			}
+
+
+//			stage ('Publishing to Nexus with Tar file') {
+//				when {
+//					expression {
+//						SUCCESSFULTARBUILD == 'YES'
+//					}
+//				}
+//				steps {
+//					nexusArtifactUploader(
+//						nexusVersion: 'nexus2',
+//						protocol: 'http',
+//						nexusUrl: 's1qvap952.1dc.com:8081/nexus',
+//						groupId: "${GROUPID}",
+//						version: "${VERSION}",
+//						repository: "${NEXUSREPOSITORY}",
+//						credentialsId: "${nexusCredentials}",
+//						artifacts: [
+//							[artifactId: "${ARTIFACTID}",
+//								classifier: '',
+//								file: "target/${ARTIFACTID}-${VERSION}.${PACKAGING}",
+//								type: "${PACKAGING}"],
+//
+//							[artifactId: "${ARTIFACTID}",
+//								classifier: '',
+//								file: "target/${ARTIFACTID}-${VERSION}.gz",
+//								type: "gz"]
+//						])
+//				}
+//			}
+
+
+			stage ('Publishing to Nexus') {
+				when { 
+					expression {
+						SUCCESSFULTARBUILD == 'YES'
+					}
+				}	
+				steps {
+					nexusArtifactUploader(
+						nexusVersion: 'nexus2',
+						protocol: 'http',
+						nexusUrl: 's1qvap952.1dc.com:8081/nexus',
+						groupId: "${GROUPID}",
+						version: "${VERSION}",
+						repository: "${NEXUSREPOSITORY}",
+						credentialsId: "${nexusCredentials}",
+						artifacts: [
+							[artifactId: "${ARTIFACTID}",
+								classifier: '',
+								file: "target/${ARTIFACTID}-${VERSION}.${PACKAGING}",
+								type: "${PACKAGING}"]
+						])
+				}
+			}
+
+
+//			stage ('Fortify On Premise') {
+//
+//				steps {
+//					script {
+//						//-----CLEAN
+//						def status = sh(returnStatus: true, script: "${FORTIFY_HOME}/bin/sourceanalyzer -b ${FOP_BUILD_ID}  -clean")
+//						if (status <= 0) {
+//							FOP_CLEANED = "YES"
+//						}
+//
+//						if ( FOP_CLEANED != "YES" ) {
+//							echo '[FAILURE] Failed at sourceanalyzer -clean'
+//							sh "exit ${status}"
+//						}
+
+//						//-----ANALYZE
+//						def status2 = sh(returnStatus: true, script: "${FORTIFY_HOME}/bin/sourceanalyzer -b ${FOP_BUILD_ID}  src/**/*.java")
+//						if (status2 <= 0) {
+//							FOP_SRC_ANALYZER_STATUS = "YES"
+//						}
+	
+//						if ( FOP_SRC_ANALYZER_STATUS != "YES" ) {
+//							echo '[FAILURE] Failed at sourceanalyzer'
+//							sh "exit ${status2}"
+//						}
+	
+//						//-----CLOUDSCAN
+//						def status3 = sh(returnStatus: true, script: "${FORTIFY_HOME}/bin/cloudscan  -sscurl https://fortify.1dc.com/ssc -ssctoken ${fortifySSCToken}  start -upload  --application '" +  "${FOP_APPLICATION}" + "' --application-version ${FOP_VERSION}  -uptoken ${fortifySSCToken}  -b ${FOP_BUILD_ID} -scan useAutoHeap true")
+//						if (status3 <= 0) {
+//							FOP_SCAN = "YES"
+//						}
+
+//						if ( FOP_SRC_ANALYZER_STATUS  != "YES" ) {
+//							echo '[FAILURE] Failed at cloudscan'
+//							sh "exit ${status3}"
+//						}
+//					}
+//				}
+//			}
+
+		
+			stage ('Confirm Deployment to Non-Prod') {
+				options {
+					timeout(time: 30, unit: 'MINUTES') 
+				}
+				environment {
+					//Get the URL of the artifact loaded in NEXUS, from the output log of this build
+        			NEXUSUPLOADURL = """${sh(
+                			returnStdout: true,
+                			script: "cat ../builds/${BUILD_ID}/log|grep Uploaded|grep -v metadata |sed \"s/ (.*//\"|sed \"s/^Uploaded: //\" "
+            			)}""" 
+					}
+				steps {
+					echo "NEXUSUPLOADURL:${NEXUSUPLOADURL}"
+					script {
+						milestone(1)
+						//env.DEPLOY_INPUT = input message: 'User input required', parameters: [choice(name: 'Deploy via Rundeck', defaultValue: false, choices: 'no\nyes', description: 'Choose "yes" if you want to deploy this build')]
+						env.DEPLOY_INPUT = input message: 'User input required', parameters: [choice(name: 'Deploy via Rundeck', defaultValue: false,  choices: '', description: 'Proceed or Abort')]
+						milestone(2)
+                  				//def user = err.getCauses()[0].getUser()
+                  				//echo "[${user}] catched timeout! $err"
+            		}
+				}
+
+    			post {
+					aborted {
+						script {
+							echo "Deployment to Non-Prod Timeout or Manually Aborted.... skipping rest of pipeline, no error"
+							DEPLOYMENT_TIMEOUT = 'true'
+							sh "exit 0"
+						}
+					}
+				}
+			}
+	} //end of Stages
+	
+    post {
+        always {
+			echo "DEPLOYMENT_TIMEOUT:${DEPLOYMENT_TIMEOUT}"
+			sh 'printenv'
+
+// EXAMPLES
+//					//Get the URL of the artifact loaded in NEXUS, from the output log of this build
+//        				NEXUSUPLOADURL = """${sh(
+//                				returnStdout: true,
+//                				script: "cat ../builds/${BUILD_ID}/log|grep Uploaded|grep -v metadata |sed \"s/ (.*//\"|sed \"s/^Uploaded: //\" "
+//            				)}""" 
+//
+//      					// Example using returnStdout and set an env variable
+//        				TESTENVVAR = """${sh(
+//                				returnStdout: true,
+//                				script: 'echo "this is a test, version:${VERSION}"'
+//           				)}""" 
+//
+//
+//     					// Example using returnStatus and set an env variable
+//        				EXIT_STATUS = """${sh(
+//                				returnStatus: true,
+//                				script: 'exit 1'
+//            				)}"""
+//
+
+
+        }
+
+        success {
+		echo '------------- Completed Successfully -----------------'
+		script {
+            		def mailRecipients = 'FEDistributedSystems@firstdata.com'
+            		def jobName = currentBuild.fullDisplayName
+	
+            		emailext body: '''${SCRIPT, template="groovy-html.template"}''',
+            		mimeType: 'text/html',
+            		subject: "[Jenkins] ${jobName}",
+            		to: "${mailRecipients}",
+            		replyTo: "${mailRecipients}",
+            		recipientProviders: [[$class: 'CulpritsRecipientProvider']]
+		}
+        }
+
+        unstable {
+		echo '...Unstable :/'
+        }
+
+        failure {
+            	echo '...Failed :('
+        }
+
+        changed {
+		echo 'Things are different...'
+        }
+        
+		aborted {
+		echo 'Aborted ....'
+        	script {
+				if ("${DEPLOYMENT_TIMEOUT}" == "true") {	
+					echo "DEPLOYMENT_TIMEOUT is true, thus don't report any issues"
+				} else {
+
+            		def mailRecipients = 'FEDistributedSystems@firstdata.com'
+            		def jobName = currentBuild.fullDisplayName
+
+            		emailext body: '''${SCRIPT, template="groovy-html.template"}''',
+            		mimeType: 'text/html',
+            		subject: "[Jenkins] ${jobName}",
+            		to: "${mailRecipients}",
+            		replyTo: "${mailRecipients}",
+            		recipientProviders: [[$class: 'CulpritsRecipientProvider']]
+				}
+        	}
+		}
+    }
+}
