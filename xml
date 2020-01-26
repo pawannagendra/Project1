@@ -1,0 +1,105 @@
+<manifest>
+  <component component_id="archive_processor">
+    <file file_type="common" />
+    <file file_type="environment" />
+    <file file_type="system" />
+    <file file_type="tree">
+      <file_path>.</file_path>
+    </file>
+    <file file_type="type" />
+    <command command_type="command_system">
+      <environment environment_id="ESCM_ARCHIVE_PROCESSOR_DEV">
+        <system system_id="l3dvap1047">
+          <state state_id="pre_install">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_stop.sh dev_ids_m03" />
+            <execute module="Sleep" action="TimeToWait" argument="60" />
+            <execute module="Backout" action="Backup" argument="/appserver/wlpusr/servers/dev_ids_m03/apps" />
+          </state>
+          <state state_id="install">
+            <execute module="Transfer" action="Transfer" argument="/appserver/wlpusr/servers/dev_ids_m03/apps" />
+            <execute module="File" action="ChangeAllAttributes" argument="/appserver/wlpusr/servers/dev_ids_m03/apps,wasup,web,0775" />
+          </state>
+          <state state_id="post_install">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_start.sh dev_ids_m03 " />
+          </state>
+          <state state_id="backout">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_stop.sh dev_ids_m03 " />
+            <execute module="Sleep" action="TimeToWait" argument="60" />
+            <execute module="Backout" action="Restore" argument="/appserver/wlpusr/servers/dev_ids_m03/apps" />
+            <execute module="File" action="ChangeAllAttributes" argument="/appserver/wlpusr/servers/dev_ids_m03/apps,wasup,web,0775" />
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_start.sh dev_ids_m03 " />
+          </state>
+        </system>
+      </environment>
+      <environment environment_id="ESCM_ARCHIVE_PROCESSOR_DR">
+        <system system_id="L3BVAP1159">
+          <state state_id="pre_install">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_stop.sh dr_ids_m01" />
+            <execute module="Sleep" action="TimeToWait" argument="60" />
+            <execute module="Backout" action="Backup" argument="/appserver/wlpusr/servers/dr_ids_m01/apps" />
+          </state>
+          <state state_id="install">
+            <execute module="Transfer" action="Transfer" argument="/appserver/wlpusr/servers/dr_ids_m01/apps" />
+            <execute module="File" action="ChangeAllAttributes" argument="/appserver/wlpusr/servers/dr_ids_m01/apps,wasup,web,0775" />
+          </state>
+          <state state_id="post_install">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_start.sh dr_ids_m01 " />
+          </state>
+          <state state_id="backout">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_stop.sh dr_ids_m01 " />
+            <execute module="Sleep" action="TimeToWait" argument="60" />
+            <execute module="Backout" action="Restore" argument="/appserver/wlpusr/servers/dr_ids_m01/apps" />
+            <execute module="File" action="ChangeAllAttributes" argument="/appserver/wlpusr/servers/dr_ids_m01/apps,wasup,web,0775" />
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_start.sh dr_ids_m01 " />
+          </state>
+        </system>
+      </environment>
+      <environment environment_id="ESCM_ARCHIVE_PROCESSOR_PROD">
+        <system system_id="L1PVAP1479">
+          <state state_id="pre_install">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_stop.sh prod_ids_m01" />
+            <execute module="Sleep" action="TimeToWait" argument="60" />
+            <execute module="Backout" action="Backup" argument="/appserver/wlpusr/servers/prod_ids_m01/apps" />
+          </state>
+          <state state_id="install">
+            <execute module="Transfer" action="Transfer" argument="/appserver/wlpusr/servers/prod_ids_m01/apps" />
+            <execute module="File" action="ChangeAllAttributes" argument="/appserver/wlpusr/servers/prod_ids_m01/apps,wasup,web,0775" />
+          </state>
+          <state state_id="post_install">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_start.sh prod_ids_m01 " />
+          </state>
+          <state state_id="backout">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_stop.sh prod_ids_m01 " />
+            <execute module="Sleep" action="TimeToWait" argument="60" />
+            <execute module="Backout" action="Restore" argument="/appserver/wlpusr/servers/prod_ids_m01/apps" />
+            <execute module="File" action="ChangeAllAttributes" argument="/appserver/wlpusr/servers/prod_ids_m01/apps,wasup,web,0775" />
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_start.sh prod_ids_m01 " />
+          </state>
+        </system>
+      </environment>
+      <environment environment_id="ESCM_ARCHIVE_PROCESSOR_UAT">
+        <system system_id="L1QVAP1160">
+          <state state_id="pre_install">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_stop.sh qa_ids_m02" />
+            <execute module="Sleep" action="TimeToWait" argument="60" />
+            <execute module="Backout" action="Backup" argument="/appserver/wlpusr/servers/qa_ids_m02/apps" />
+          </state>
+          <state state_id="install">
+            <execute module="Transfer" action="Transfer" argument="/appserver/wlpusr/servers/qa_ids_m02/apps" />
+            <execute module="File" action="ChangeAllAttributes" argument="/appserver/wlpusr/servers/qa_ids_m02/apps,wasup,web,0775" />
+          </state>
+          <state state_id="post_install">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_start.sh qa_ids_m02 " />
+          </state>
+          <state state_id="backout">
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_stop.sh qa_ids_m02 " />
+            <execute module="Sleep" action="TimeToWait" argument="60" />
+            <execute module="Backout" action="Restore" argument="/appserver/wlpusr/servers/qa_ids_m02/apps" />
+            <execute module="File" action="ChangeAllAttributes" argument="/appserver/wlpusr/servers/qa_ids_m02/apps,wasup,web,0775" />
+            <execute module="Command" action="Command" argument="sh /appserver/admin/bin/webdep_wlp_start.sh qa_ids_m02 " />
+          </state>
+        </system>
+      </environment>
+    </command>
+  </component>
+</manifest>
