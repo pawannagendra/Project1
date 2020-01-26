@@ -1,0 +1,19 @@
+---
+- hosts: '{{ target }}'
+  become: no
+  gather_facts: no
+  remote_user: newarch
+
+  tasks:
+  - name: start service
+    command: /newarch/apps/fs-monitoring/startService.sh {{service_id}}
+    ignore_errors: yes
+
+  - stat: path=/newarch/apps/fs-services/servers/{{service_id}}
+    register: service_dir
+
+  - name: Wait until the process is finished and pid was created
+    wait_for:
+      path: /newarch/apps/fs-services/servers/.pid/{{service_id}}.pid
+      state: present
+      timeout: 600
