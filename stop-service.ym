@@ -1,0 +1,24 @@
+---
+- hosts: '{{ target }}'
+  become: no
+  gather_facts: no
+  remote_user: newarch
+
+  tasks:
+  - name: stop service
+    command: /newarch/apps/fs-monitoring/stopService.sh {{service_id}}
+    ignore_errors: yes
+
+  - stat: path=/newarch/apps/fs-services/servers/{{service_id}}
+    register: service_dir
+
+  - name: stop service using container script if container service
+    when: service_dir.stat.exists == true
+    command: /newarch/apps/fs-container/stop.sh {{service_id}}
+    ignore_errors: yes
+
+  - name: Wait until the process is finished and pid was destroyed
+    wait_for:
+      path: /newarch/apps/fs-services/servers/.pid/{{service_id}}.pid
+      state: absent
+      timeout: 600
